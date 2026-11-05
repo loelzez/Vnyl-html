@@ -1,0 +1,336 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Block Blast</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #101827;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.game {
+  width: 100%;
+  max-width: 430px;
+  padding: 20px;
+  text-align: center;
+}
+
+h1 {
+  color: #54d6ff;
+  font-size: 34px;
+  margin-bottom: 5px;
+}
+
+.score {
+  font-size: 22px;
+  margin: 20px;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
+  background: #25344b;
+  padding: 7px;
+  border-radius: 12px;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.cell {
+  background: #34445c;
+  border-radius: 5px;
+  aspect-ratio: 1;
+}
+
+.cell.filled {
+  background: #35c5f0;
+  box-shadow: inset 0 -4px #1594bd;
+}
+
+.pieces {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 25px;
+  gap: 10px;
+}
+
+.piece {
+  display: grid;
+  gap: 3px;
+  cursor: pointer;
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  min-width: 85px;
+  min-height: 85px;
+  align-content: center;
+  justify-content: center;
+}
+
+.piece.selected {
+  border-color: #54d6ff;
+  background: #263e56;
+}
+
+.mini-cell {
+  width: 20px;
+  height: 20px;
+  background: #ffb84d;
+  border-radius: 3px;
+}
+
+button {
+  margin-top: 25px;
+  padding: 12px 30px;
+  background: #35c5f0;
+  color: #101827;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+<div class="game">
+
+<h1>BLOCK BLAST</h1>
+<p>Susun balok dan hancurkan baris!</p>
+
+<div class="score">
+  Skor: <span id="score">0</span>
+</div>
+
+<div id="board"></div>
+
+<h3>Pilih Balok</h3>
+<div class="pieces" id="pieces"></div>
+
+<button onclick="restart()">RESTART</button>
+
+<p id="message"></p>
+
+</div>
+
+<script>
+const SIZE = 8;
+
+let board = [];
+let score = 0;
+let pieces = [];
+let selected = -1;
+
+const shapes = [
+  [[0,0]],
+  [[0,0],[0,1]],
+  [[0,0],[1,0]],
+  [[0,0],[0,1],[0,2]],
+  [[0,0],[1,0],[2,0]],
+  [[0,0],[0,1],[1,0],[1,1]],
+  [[0,0],[0,1],[0,2],[1,1]],
+  [[0,0],[1,0],[2,0],[2,1]],
+  [[0,0],[1,0],[1,1],[1,2]],
+  [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]]
+];
+
+const boardElement = document.getElementById("board");
+const piecesElement = document.getElementById("pieces");
+
+function restart() {
+  board = Array.from(
+    {length: SIZE},
+    () => Array(SIZE).fill(0)
+  );
+
+  score = 0;
+  selected = -1;
+  document.getElementById("message").textContent = "";
+
+  updateScore();
+  createPieces();
+  render();
+}
+
+function updateScore() {
+  document.getElementById("score").textContent = score;
+}
+
+function render() {
+  boardElement.innerHTML = "";
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+
+      if (board[r][c]) {
+        cell.classList.add("filled");
+      }
+
+      cell.onclick = () => placePiece(r,c);
+      boardElement.appendChild(cell);
+    }
+  }
+}
+
+function createPieces() {
+  pieces = Array.from({length: 3}, () => {
+    return shapes[Math.floor(Math.random() * shapes.length)];
+  });
+
+  selected = -1;
+  renderPieces();
+}
+
+function renderPieces() {
+  piecesElement.innerHTML = "";
+
+  pieces.forEach((shape, index) => {
+    const piece = document.createElement("div");
+    piece.className = "piece";
+
+    if (selected === index) {
+      piece.classList.add("selected");
+    }
+
+    const maxRow = Math.max(...shape.map(p => p[0])) + 1;
+    const maxCol = Math.max(...shape.map(p => p[1])) + 1;
+
+    piece.style.gridTemplateColumns =
+      `repeat(${maxCol}, 20px)`;
+
+    piece.style.gridTemplateRows =
+      `repeat(${maxRow}, 20px)`;
+
+    shape.forEach(([r,c]) => {
+      const block = document.createElement("div");
+      block.className = "mini-cell";
+      block.style.gridRow = r + 1;
+      block.style.gridColumn = c + 1;
+      piece.appendChild(block);
+    });
+
+    piece.onclick = () => {
+      selected = index;
+      renderPieces();
+    };
+
+    piecesElement.appendChild(piece);
+  });
+}
+
+function placePiece(row, col) {
+  if (selected === -1 || !pieces[selected]) return;
+
+  const shape = pieces[selected];
+
+  const canPlace = shape.every(([r,c]) => {
+    const nr = row + r;
+    const nc = col + c;
+
+    return nr < SIZE &&
+           nc < SIZE &&
+           !board[nr][nc];
+  });
+
+  if (!canPlace) return;
+
+  shape.forEach(([r,c]) => {
+    board[row+r][col+c] = 1;
+  });
+
+  score += shape.length;
+
+  pieces[selected] = null;
+  selected = -1;
+
+  clearLines();
+  updateScore();
+  renderPieces();
+  render();
+
+  if (pieces.every(p => p === null)) {
+    createPieces();
+  }
+
+  checkGameOver();
+}
+
+function clearLines() {
+  let rows = [];
+  let cols = [];
+
+  for (let r = 0; r < SIZE; r++) {
+    if (board[r].every(v => v === 1)) {
+      rows.push(r);
+    }
+  }
+
+  for (let c = 0; c < SIZE; c++) {
+    if (board.every(row => row[c] === 1)) {
+      cols.push(c);
+    }
+  }
+
+  rows.forEach(r => {
+    board[r] = Array(SIZE).fill(0);
+  });
+
+  cols.forEach(c => {
+    for (let r = 0; r < SIZE; r++) {
+      board[r][c] = 0;
+    }
+  });
+
+  score += (rows.length + cols.length) * 10;
+}
+
+function checkGameOver() {
+  const available = pieces
+    .map((p, i) => p ? i : -1)
+    .filter(i => i !== -1);
+
+  const possible = available.some(i => {
+    return canFit(pieces[i]);
+  });
+
+  if (!possible && available.length > 0) {
+    document.getElementById("message").textContent =
+      "GAME OVER! Skor akhir: " + score;
+  }
+}
+
+function canFit(shape) {
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (shape.every(([dr,dc]) =>
+        r+dr < SIZE &&
+        c+dc < SIZE &&
+        !board[r+dr][c+dc]
+      )) return true;
+    }
+  }
+
+  return false;
+}
+
+restart();
+</script>
+</body>
+</html>
